@@ -5,20 +5,26 @@ use plotters_backend::{
     BackendTextStyle,
     DrawingBackend,
     DrawingErrorKind,
+    FontStyle,
+    FontTransform,
 };
+use plotters_backend::text_anchor::{ HPos, VPos };
 use std::io::Error;
 
 use dioxus::prelude::*;
+
+use std::fmt::Write as _;
 
 pub type Stack<'a, 'b> = &'a mut Vec<Box<dyn Fn() -> LazyNodes<'b, 'b>>>;
 
 pub struct DioxusBackend<'a, 'b: 'a> {
     pub stack: Stack<'a, 'b>,
+    size: (u32, u32),
 }
 
 impl<'a, 'b> DioxusBackend<'a, 'b> {
-    pub fn new(stack: Stack<'a, 'b>) -> Self {
-        Self { stack: stack }
+    pub fn new(stack: Stack<'a, 'b>, size: (u32, u32)) -> Self {
+        Self { stack: stack, size: size }
     }
 }
 
@@ -35,7 +41,7 @@ impl<'a, 'b> DrawingBackend for DioxusBackend<'a, 'b> {
     type ErrorType = Error;
 
     fn get_size(&self) -> (u32, u32) {
-        (200, 200)
+        self.size
     }
 
     fn ensure_prepared(&mut self) -> Result<(), DrawingErrorKind<Error>> {
@@ -146,36 +152,188 @@ impl<'a, 'b> DrawingBackend for DioxusBackend<'a, 'b> {
 
     fn draw_path<S: BackendStyle, I: IntoIterator<Item = BackendCoord>>(
         &mut self,
-        _: I,
-        _: &S
+        path: I,
+        style: &S
     ) -> Result<(), DrawingErrorKind<Self::ErrorType>> {
+        if style.color().alpha == 0.0 {
+            return Ok(());
+        }
+        let opacity = make_svg_opacity(style.color());
+        let stroke = make_svg_color(style.color());
+        let stroke_width = format!("{}", style.stroke_width());
+        let points = path.into_iter().fold(String::new(), |mut s, (x, y)| {
+            write!(s, "{},{} ", x, y).ok();
+            s
+        });
+        self.stack.push(
+            Box::new(move || {
+                let opacity = opacity.clone();
+                let stroke = stroke.clone();
+                let stroke_width = stroke_width.clone();
+                let points: String = points.clone();
+                rsx! {
+                    path {
+                        fill: "none",
+                        opacity: "{opacity}",
+                        stroke: "{stroke}",
+                        stroke_width: "{stroke_width}",
+                        points: "{points}",
+                    }
+                }
+            })
+        );
         Ok(())
     }
 
     fn fill_polygon<S: BackendStyle, I: IntoIterator<Item = BackendCoord>>(
         &mut self,
-        _: I,
-        _: &S
+        path: I,
+        style: &S
     ) -> Result<(), DrawingErrorKind<Self::ErrorType>> {
+        if style.color().alpha == 0.0 {
+            return Ok(());
+        }
+        let opacity = make_svg_opacity(style.color());
+        let fill = make_svg_color(style.color());
+        let points = path.into_iter().fold(String::new(), |mut s, (x, y)| {
+            write!(s, "{},{} ", x, y).ok();
+            s
+        });
+        self.stack.push(
+            Box::new(move || {
+                let opacity = opacity.clone();
+                let fill = fill.clone();
+                let points: String = points.clone();
+                rsx! {
+                    polygon {
+                        fill: "{fill}",
+                        opacity: "{opacity}",
+                        points: "{points}",
+                    }
+                }
+            })
+        );
         Ok(())
     }
 
     fn draw_circle<S: BackendStyle>(
         &mut self,
-        _: BackendCoord,
-        _: u32,
-        _: &S,
-        _: bool
+        center: BackendCoord,
+        radius: u32,
+        style: &S,
+        fill: bool
     ) -> Result<(), DrawingErrorKind<Self::ErrorType>> {
+        if style.color().alpha == 0.0 {
+            return Ok(());
+        }
+        let (stroke, fill) = if !fill {
+            (make_svg_color(style.color()), "none".to_string())
+        } else {
+            ("none".to_string(), make_svg_color(style.color()))
+        };
+        let stroke_width = format!("{}", style.stroke_width());
+        let opacity = make_svg_opacity(style.color());
+        self.stack.push(
+            Box::new(move || {
+                let stroke = stroke.clone();
+                let fill = fill.clone();
+                let opacity = opacity.clone();
+                let stroke_width = stroke_width.clone();
+                rsx! {
+                    circle {
+                        cx: "{center.0}",
+                        cy: "{center.1}",
+                        r: "{radius}",
+                        opacity: "{opacity}",
+                        fill: "{fill}",
+                        stroke: "{stroke}",
+                        stroke_width: "{stroke_width}",
+                    }
+                }
+            })
+        );
         Ok(())
     }
 
     fn draw_text<S: BackendTextStyle>(
         &mut self,
-        _: &str,
-        _: &S,
-        _: BackendCoord
+        text: &str,
+        style: &S,
+        pos: BackendCoord
     ) -> Result<(), DrawingErrorKind<Self::ErrorType>> {
+        let color = style.color();
+        if color.alpha == 0.0 {
+            return Ok(());
+        }
+
+        let (x0, y0) = pos;
+        let text_anchor = (
+            match style.anchor().h_pos {
+                HPos::Left => "start",
+                HPos::Right => "end",
+                HPos::Center => "middle",
+            }
+        ).to_string();
+
+        let dy = (
+            match style.anchor().v_pos {
+                VPos::Top => "0.76em",
+                VPos::Center => "0.5ex",
+                VPos::Bottom => "-0.5ex",
+            }
+        ).to_string();
+
+        let (font_weight, font_style) = match style.style() {
+            FontStyle::Bold => (Some("bold".to_string()), None),
+            other_style => (None, Some(other_style.as_str().to_string())),
+        };
+
+        let transf = (
+            match style.transform() {
+                FontTransform::Rotate90 => { Some(format!("rotate(90, {}, {})", x0, y0)) }
+                FontTransform::Rotate180 => { Some(format!("rotate(180, {}, {})", x0, y0)) }
+                FontTransform::Rotate270 => { Some(format!("rotate(270, {}, {})", x0, y0)) }
+                _ => None,
+            }
+        ).unwrap_or("".to_string());
+
+        let font_family = style.family().as_str().to_string();
+        let font_size = style.size() / 1.24;
+        let opacity = make_svg_opacity(color);
+        let fill = make_svg_color(color);
+        let text = text.to_string();
+        let font_weight = font_weight.unwrap_or("".to_string());
+        let font_style = font_style.unwrap_or("".to_string());
+        self.stack.push(
+            Box::new(move || {
+                let fill = fill.clone();
+                let opacity = opacity.clone();
+                let font_family = font_family.clone();
+                let text_anchor = text_anchor.clone();
+                let dy = dy.clone();
+                let text = text.clone();
+                let transf = transf.clone();
+                let font_weight = font_weight.clone();
+                let font_style = font_style.clone();
+                rsx! {
+                    text {
+                        x: "{x0}",
+                        y: "{y0}",
+                        dy: "{dy}",
+                        text_anchor: "{text_anchor}",
+                        font_family: "{font_family}",
+                        font_size: "{font_size}",
+                        opacity: "{opacity}",
+                        fill: "{fill}",
+                        transform: "{transf}",
+                        font_style: "{font_style}",
+                        font_weight: "{font_weight}",
+                        "{text}"
+                    }
+                }
+            })
+        );
+
         Ok(())
     }
 

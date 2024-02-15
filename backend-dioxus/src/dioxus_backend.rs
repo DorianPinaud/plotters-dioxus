@@ -12,19 +12,20 @@ use plotters_backend::text_anchor::{ HPos, VPos };
 use std::io::Error;
 
 use dioxus::prelude::*;
+use dioxus::core::DynamicNode;
 
 use std::fmt::Write as _;
 
-pub type Stack<'a, 'b> = &'a mut Vec<Box<dyn Fn() -> LazyNodes<'b, 'b>>>;
+pub type Stack<'a> = Vec<Box<dyn Fn() -> LazyNodes<'a, 'a>>>;
 
-pub struct DioxusBackend<'a, 'b: 'a> {
-    pub stack: Stack<'a, 'b>,
+pub struct DioxusBackend<'a> {
+    pub stack: Stack<'a>,
     size: (u32, u32),
 }
 
-impl<'a, 'b> DioxusBackend<'a, 'b> {
-    pub fn new(stack: Stack<'a, 'b>, size: (u32, u32)) -> Self {
-        Self { stack: stack, size: size }
+impl<'a> DioxusBackend<'a> {
+    pub fn new(size: (u32, u32)) -> Self {
+        Self { stack: Stack::<'a>::new(), size: size }
     }
 }
 
@@ -37,7 +38,13 @@ fn make_svg_opacity(color: BackendColor) -> String {
     return format!("{}", color.alpha);
 }
 
-impl<'a, 'b> DrawingBackend for DioxusBackend<'a, 'b> {
+impl<'a> IntoDynNode<'a> for DioxusBackend<'a> {
+    fn into_vnode(self, cx: &'a ScopeState) -> DynamicNode<'a> {
+        rsx!(self.stack.iter().map(|e| (*e)())).into_vnode(cx)
+    }
+}
+
+impl<'a> DrawingBackend for DioxusBackend<'a> {
     type ErrorType = Error;
 
     fn get_size(&self) -> (u32, u32) {

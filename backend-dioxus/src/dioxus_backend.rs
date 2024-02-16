@@ -16,16 +16,14 @@ use dioxus::core::DynamicNode;
 
 use std::fmt::Write as _;
 
-pub type Stack<'a> = Vec<Box<dyn Fn() -> LazyNodes<'a, 'a>>>;
-
 pub struct DioxusBackend<'a> {
-    pub stack: Stack<'a>,
+    pub svg_children: Vec<LazyNodes<'a, 'a>>,
     size: (u32, u32),
 }
 
 impl<'a> DioxusBackend<'a> {
     pub fn new(size: (u32, u32)) -> Self {
-        Self { stack: Stack::<'a>::new(), size: size }
+        Self { svg_children: Vec::<LazyNodes<'a, 'a>>::new(), size: size }
     }
 }
 
@@ -40,7 +38,17 @@ fn make_svg_opacity(color: BackendColor) -> String {
 
 impl<'a> IntoDynNode<'a> for DioxusBackend<'a> {
     fn into_vnode(self, cx: &'a ScopeState) -> DynamicNode<'a> {
-        rsx!(self.stack.iter().map(|e| (*e)())).into_vnode(cx)
+        rsx!(
+            svg {
+                height: "{self.size.0}",
+                width: "{self.size.1}",
+                for svg_child in self.svg_children {
+                    svg_child
+                }
+            }
+            ).into_vnode(
+            cx
+        )
     }
 }
 
@@ -67,20 +75,18 @@ impl<'a> DrawingBackend for DioxusBackend<'a> {
         if color.alpha == 0.0 {
             return Ok(());
         }
-        self.stack.push(
-            Box::new(move || {
-                let hex_color = make_svg_color(color);
-                rsx! {
-                    rect {
-                        x: "{point.0}",
-                        y: "{point.1}",
-                        width: 1,
-                        height: 1,
-                        fill: "{hex_color}",
-                        stroke: "none",
-                    }
+        let hex_color = make_svg_color(color);
+        self.svg_children.push(
+            rsx! {
+                rect {
+                    x: "{point.0}",
+                    y: "{point.1}",
+                    width: 1,
+                    height: 1,
+                    fill: "{hex_color}",
+                    stroke: "none",
                 }
-            })
+            }
         );
         Ok(())
     }
@@ -97,23 +103,18 @@ impl<'a> DrawingBackend for DioxusBackend<'a> {
         let hex_color = make_svg_color(style.color());
         let alpha = make_svg_opacity(style.color());
         let stroke_width = format!("{}", style.stroke_width());
-        self.stack.push(
-            Box::new(move || {
-                let hex_color = hex_color.clone();
-                let alpha = alpha.clone();
-                let stroke_width = stroke_width.clone();
-                rsx! {
-                    line {
-                        x1: "{from.0}",
-                        y1: "{from.1}",
-                        x2: "{to.0}",
-                        y2: "{to.1}",
-                        stroke: "{hex_color}",
-                        opacity: "{alpha}",
-                        stroke_width: "{stroke_width}",
-                    }
+        self.svg_children.push(
+            rsx! {
+                line {
+                    x1: "{from.0}",
+                    y1: "{from.1}",
+                    x2: "{to.0}",
+                    y2: "{to.1}",
+                    stroke: "{hex_color}",
+                    opacity: "{alpha}",
+                    stroke_width: "{stroke_width}",
                 }
-            })
+            }
         );
         Ok(())
     }
@@ -136,23 +137,18 @@ impl<'a> DrawingBackend for DioxusBackend<'a> {
         };
 
         let alpha = make_svg_opacity(style.color());
-        self.stack.push(
-            Box::new(move || {
-                let alpha = alpha.clone();
-                let fill = fill.clone();
-                let stroke = stroke.clone();
-                rsx! {
-                    rect {
-                        x: "{upper_left.0}",
-                        y: "{upper_left.1}",
-                        width: "{bottom_right.0 - upper_left.0}",
-                        height: "{bottom_right.1 - upper_left.1}",
-                        opacity: "{alpha}",
-                        fill: "{fill}",
-                        stroke: "{stroke}",
-                    }
+        self.svg_children.push(
+            rsx! {
+                rect {
+                    x: "{upper_left.0}",
+                    y: "{upper_left.1}",
+                    width: "{bottom_right.0 - upper_left.0}",
+                    height: "{bottom_right.1 - upper_left.1}",
+                    opacity: "{alpha}",
+                    fill: "{fill}",
+                    stroke: "{stroke}",
                 }
-            })
+            }
         );
         Ok(())
     }
@@ -172,22 +168,16 @@ impl<'a> DrawingBackend for DioxusBackend<'a> {
             write!(s, "{},{} ", x, y).ok();
             s
         });
-        self.stack.push(
-            Box::new(move || {
-                let opacity = opacity.clone();
-                let stroke = stroke.clone();
-                let stroke_width = stroke_width.clone();
-                let points: String = points.clone();
-                rsx! {
-                    path {
-                        fill: "none",
-                        opacity: "{opacity}",
-                        stroke: "{stroke}",
-                        stroke_width: "{stroke_width}",
-                        points: "{points}",
-                    }
+        self.svg_children.push(
+            rsx! {
+                path {
+                    fill: "none",
+                    opacity: "{opacity}",
+                    stroke: "{stroke}",
+                    stroke_width: "{stroke_width}",
+                    points: "{points}",
                 }
-            })
+            }
         );
         Ok(())
     }
@@ -206,19 +196,14 @@ impl<'a> DrawingBackend for DioxusBackend<'a> {
             write!(s, "{},{} ", x, y).ok();
             s
         });
-        self.stack.push(
-            Box::new(move || {
-                let opacity = opacity.clone();
-                let fill = fill.clone();
-                let points: String = points.clone();
-                rsx! {
-                    polygon {
-                        fill: "{fill}",
-                        opacity: "{opacity}",
-                        points: "{points}",
-                    }
+        self.svg_children.push(
+            rsx! {
+                polygon {
+                    fill: "{fill}",
+                    opacity: "{opacity}",
+                    points: "{points}",
                 }
-            })
+            }
         );
         Ok(())
     }
@@ -240,24 +225,18 @@ impl<'a> DrawingBackend for DioxusBackend<'a> {
         };
         let stroke_width = format!("{}", style.stroke_width());
         let opacity = make_svg_opacity(style.color());
-        self.stack.push(
-            Box::new(move || {
-                let stroke = stroke.clone();
-                let fill = fill.clone();
-                let opacity = opacity.clone();
-                let stroke_width = stroke_width.clone();
-                rsx! {
-                    circle {
-                        cx: "{center.0}",
-                        cy: "{center.1}",
-                        r: "{radius}",
-                        opacity: "{opacity}",
-                        fill: "{fill}",
-                        stroke: "{stroke}",
-                        stroke_width: "{stroke_width}",
-                    }
+        self.svg_children.push(
+            rsx! {
+                circle {
+                    cx: "{center.0}",
+                    cy: "{center.1}",
+                    r: "{radius}",
+                    opacity: "{opacity}",
+                    fill: "{fill}",
+                    stroke: "{stroke}",
+                    stroke_width: "{stroke_width}",
                 }
-            })
+            }
         );
         Ok(())
     }
@@ -311,18 +290,8 @@ impl<'a> DrawingBackend for DioxusBackend<'a> {
         let text = text.to_string();
         let font_weight = font_weight.unwrap_or("".to_string());
         let font_style = font_style.unwrap_or("".to_string());
-        self.stack.push(
-            Box::new(move || {
-                let fill = fill.clone();
-                let opacity = opacity.clone();
-                let font_family = font_family.clone();
-                let text_anchor = text_anchor.clone();
-                let dy = dy.clone();
-                let text = text.clone();
-                let transf = transf.clone();
-                let font_weight = font_weight.clone();
-                let font_style = font_style.clone();
-                rsx! {
+        self.svg_children.push(
+            rsx! {
                     text {
                         x: "{x0}",
                         y: "{y0}",
@@ -338,7 +307,6 @@ impl<'a> DrawingBackend for DioxusBackend<'a> {
                         "{text}"
                     }
                 }
-            })
         );
 
         Ok(())

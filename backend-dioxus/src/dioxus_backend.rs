@@ -11,17 +11,35 @@ use plotters_backend::{
 use plotters_backend::text_anchor::{ HPos, VPos };
 use std::io::Error;
 
+use plotters::prelude::*;
 use dioxus::prelude::*;
 use dioxus::core::DynamicNode;
+use plotters::coord::Shift;
 
+use std::rc::Rc;
 use std::fmt::Write as _;
 
-pub struct DioxusBackend<'a> {
+pub struct DioxusDrawingBackend<'a> {
     pub svg_children: Vec<LazyNodes<'a, 'a>>,
     size: (u32, u32),
 }
 
+pub struct DioxusBackend<'a> {
+    register: Rc<std::cell::RefCell<DioxusDrawingBackend<'a>>>,
+    pub drawing_area: DrawingArea<DioxusDrawingBackend<'a>, Shift>,
+}
+
 impl<'a> DioxusBackend<'a> {
+    pub fn new(size: (u32, u32)) -> Self {
+        let backend = Rc::new(std::cell::RefCell::new(DioxusDrawingBackend::new(size)));
+        Self {
+            register: backend.clone(),
+            drawing_area: DrawingArea::<DioxusDrawingBackend, Shift>::from(&backend),
+        }
+    }
+}
+
+impl<'a> DioxusDrawingBackend<'a> {
     pub fn new(size: (u32, u32)) -> Self {
         Self { svg_children: Vec::<LazyNodes<'a, 'a>>::new(), size: size }
     }
@@ -36,7 +54,7 @@ fn make_svg_opacity(color: BackendColor) -> String {
     return format!("{}", color.alpha);
 }
 
-impl<'a> IntoDynNode<'a> for DioxusBackend<'a> {
+impl<'a> IntoDynNode<'a> for DioxusDrawingBackend<'a> {
     fn into_vnode(self, cx: &'a ScopeState) -> DynamicNode<'a> {
         rsx!(
             svg {
@@ -52,7 +70,17 @@ impl<'a> IntoDynNode<'a> for DioxusBackend<'a> {
     }
 }
 
-impl<'a> DrawingBackend for DioxusBackend<'a> {
+impl<'a> IntoDynNode<'a> for DioxusBackend<'a> {
+    fn into_vnode(self, cx: &'a ScopeState) -> DynamicNode<'a> {
+        drop(self.drawing_area);
+        Rc::into_inner(self.register)
+            .expect("Only one strong reference should exist")
+            .into_inner()
+            .into_vnode(cx)
+    }
+}
+
+impl<'a> DrawingBackend for DioxusDrawingBackend<'a> {
     type ErrorType = Error;
 
     fn get_size(&self) -> (u32, u32) {

@@ -1,2 +1,2 @@
 [workspace]
-members = ["backend-dioxus", "demo"]
+members = ["plotters-dioxus", "demo"]

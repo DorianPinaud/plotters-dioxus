@@ -1,16 +1,15 @@
 #![allow(non_snake_case)]
 use dioxus::prelude::*;
-use backend_dioxus::DioxusBackend;
-use plotters::prelude::*;
+use plotters_dioxus::{Backend, Plotter};
+use plotters::{coord::Shift, prelude::*};
 
 fn main() {
     dioxus_desktop::launch(App);
 }
 
-fn build_histogram<'a>(size: (u32, u32)) -> DioxusBackend<'a> {
-    let backend = DioxusBackend::new(size);
-    let _ = backend.drawing_area.fill(&WHITE);
-    let mut chart = ChartBuilder::on(&backend.drawing_area)
+fn draw_histogram(drawing_area : DrawingArea<Backend, Shift>) -> () {
+    let _ = drawing_area.fill(&WHITE);
+    let mut chart = ChartBuilder::on(&drawing_area)
         .x_label_area_size(35)
         .y_label_area_size(40)
         .margin(5)
@@ -36,16 +35,16 @@ fn build_histogram<'a>(size: (u32, u32)) -> DioxusBackend<'a> {
     );
 
     // To avoid the IO failure being ignored silently, we manually call the present function
-    backend.drawing_area
+    drawing_area
         .present()
         .expect(
             "Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir"
         );
-    drop(chart);
-    backend
 }
 
 fn App<'a>(cx: Scope<'a>) -> Element {
-    let backend = build_histogram((400, 400));
-    render!(backend)
+    render!(Plotter {
+        size: (400, 400),
+        on_drawing: draw_histogram,
+    })
 }

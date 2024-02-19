@@ -3,11 +3,11 @@ name = "plotters-dioxus"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-resolver = "2"
-description = "A plotter-rs component for dioxus"
+resolver = "1"
+description = "A plotters-rs component for dioxus"
 readme = "../README.md"
 repository = "https://github.com/DorianPinaud/plotters-dioxus"
-keywords = ["dioxus", "plotter-rs", "plot", "chart", "drawing"]
+keywords = ["dioxus", "plotters-rs", "plot", "chart", "drawing"]
 authors = ["Dorian Pinaud dorian.pinaud@gmail.com"]
 categories = ["visualization", "gui"]
 

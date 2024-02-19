@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 use dioxus::prelude::*;
-use plotters_dioxus::{Backend, Plotter};
+use plotters_dioxus::{Backend, Plotters};
 use plotters::{coord::Shift, prelude::*};
 
 fn main() {
@@ -43,7 +43,7 @@ fn draw_histogram(drawing_area : DrawingArea<Backend, Shift>) -> () {
 }
 
 fn App<'a>(cx: Scope<'a>) -> Element {
-    render!(Plotter {
+    render!(Plotters {
         size: (400, 400),
         on_drawing: draw_histogram,
     })

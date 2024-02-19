@@ -21,8 +21,7 @@ pub fn Plotter<'a>(cx: Scope<'a, PlotterProps<'a>>) -> Element<'a> {
     cx.props.on_drawing.call(drawing_area);
     let dynamic_node = Rc::into_inner(backend)
         .expect("Only one strong reference should exist")
-        .into_inner()
-        .into_vnode(cx);
+        .into_inner();
     render!(svg {
         height: "{cx.props.size.0}",
         width: "{cx.props.size.1}",

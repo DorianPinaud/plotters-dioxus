@@ -22,7 +22,6 @@ pub struct Backend<'a> {
     size: (u32, u32),
 }
 
-
 impl<'a> Backend<'a> {
     pub fn new(size: (u32, u32)) -> Self {
         Self { svg_children: Vec::<LazyNodes<'a, 'a>>::new(), size: size }
@@ -40,9 +39,7 @@ fn make_svg_opacity(color: BackendColor) -> String {
 
 impl<'a> IntoDynNode<'a> for Backend<'a> {
     fn into_vnode(self, cx: &'a ScopeState) -> DynamicNode<'a> {
-        rsx!(for svg_child in self.svg_children {
-            svg_child
-        }).into_vnode(cx)
+        rsx!(self.svg_children.into_iter()).into_vnode(cx)
     }
 }
 

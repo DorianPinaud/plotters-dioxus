@@ -44,13 +44,23 @@ pub fn Plotters<'a, F: Fn(DioxusDrawingArea)>(cx: Scope<'a, PlottersProps<'a, F>
     let encoder = PngEncoder::new(cursor);
     let color = image::ColorType::Rgb8;
 
-    encoder.write_image(buffer.as_slice(), cx.props.size.0, cx.props.size.1, color).expect("Should work");
+    encoder
+        .write_image(buffer.as_slice(), cx.props.size.0, cx.props.size.1, color)
+        .expect("The Png encoder is expected to write the image");
 
     let buffer_base64 = BASE64_STANDARD.encode(data);
 
     render!(img {
-        onclick: |e| if cx.props.on_click.is_some() { cx.props.on_click.as_ref().unwrap().call(e)},
-        onwheel: |e| if cx.props.on_wheel.is_some() { cx.props.on_wheel.as_ref().unwrap().call(e)},
+        onclick: |e| (
+            if cx.props.on_click.is_some() {
+                cx.props.on_click.as_ref().unwrap().call(e)
+            }
+        ),
+        onwheel: |e| (
+            if cx.props.on_wheel.is_some() {
+                cx.props.on_wheel.as_ref().unwrap().call(e)
+            }
+        ),
         src: "data:image/png;base64,{buffer_base64}",
     })
 }

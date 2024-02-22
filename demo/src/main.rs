@@ -1,40 +1,82 @@
 #![allow(non_snake_case)]
+use dioxus::html::geometry::ElementPoint;
 use dioxus::prelude::*;
-use plotters_dioxus::{Backend, Plotters};
-use plotters::{coord::Shift, prelude::*};
+use plotters_dioxus::{ Plotters, DioxusDrawingArea };
+use plotters::{ define_color, doc, coord::{ ReverseCoordTranslate }, prelude::* };
+
+define_color!(BACKGROUND, 11, 20, 31, "background");
+define_color!(ITEM, 57, 90, 131, "item");
+
+use rand::SeedableRng;
+use rand_distr::{ Distribution, Normal };
+use rand_xorshift::XorShiftRng;
 
 fn main() {
     dioxus_desktop::launch(App);
 }
 
-fn draw_histogram(drawing_area : DrawingArea<Backend, Shift>) -> () {
-    let _ = drawing_area.fill(&WHITE);
-    let mut chart = ChartBuilder::on(&drawing_area)
-        .x_label_area_size(35)
+fn draw_scatter_plot(
+    drawing_area: DioxusDrawingArea,
+    click_coord: ElementPoint,
+    x_axis_scale: f64
+) -> () {
+    let number_sample = 50000;
+    let normal_dist = Normal::new(0.5, 0.1).unwrap();
+    let mut rand = XorShiftRng::from_seed(*b"MyFragileSeed123");
+    let iter_rand = normal_dist.sample_iter(&mut rand);
+    let data = iter_rand
+        .enumerate()
+        .take(number_sample)
+        .map(|(idx, data)| (
+            f64::from(i32::try_from(idx).expect("Expect to be not more than 1000")),
+            data,
+        ))
+        .collect::<Vec<(f64, f64)>>();
+    drawing_area.fill(&BACKGROUND).expect("Expect to work");
+    let mut scatter_ctx = ChartBuilder::on(&drawing_area)
+        .caption("Test graph", ("sans-serif", 14, &WHITE))
+        .margin_top(40)
+        .x_label_area_size(40)
         .y_label_area_size(40)
-        .margin(5)
-        .caption("Histogram Test", ("sans-serif", 50.0))
-        .build_cartesian_2d((0u32..10u32).into_segmented(), 0u32..10u32)
-        .expect("Expect a chart to be build");
+        .build_cartesian_2d(0f64..x_axis_scale * (number_sample as f64), 0f64..1f64)
+        .expect("Expect to work");
 
-    let _ = chart
+    let original_style = ShapeStyle {
+        color: WHITE.mix(0.5),
+        filled: true,
+        stroke_width: 1,
+    };
+
+    scatter_ctx
         .configure_mesh()
         .disable_x_mesh()
-        .bold_line_style(WHITE.mix(0.3))
-        .y_desc("Count")
-        .x_desc("Bucket")
-        .axis_desc_style(("sans-serif", 15))
-        .draw();
-
-    let data = [0u32, 1, 1, 1, 4, 2, 5, 7, 8, 6, 4, 2, 1, 8, 3, 3, 3, 4, 4, 3, 3, 3];
-
-    let _ = chart.draw_series(
-        Histogram::vertical(&chart)
-            .style(RED.mix(0.5).filled())
-            .data(data.iter().map(|x: &u32| (*x, 1)))
-    );
-
-    // To avoid the IO failure being ignored silently, we manually call the present function
+        .disable_y_mesh()
+        .y_label_style(("sans-serif", 11, &WHITE).into_text_style(&drawing_area))
+        .x_label_style(("sans-serif", 11, &WHITE).into_text_style(&drawing_area))
+        .x_desc("Count")
+        .y_desc("Data")
+        .axis_style(original_style)
+        .axis_desc_style(("sans-serif", 11, &WHITE).into_text_style(&drawing_area))
+        .draw()
+        .expect("Succeed");
+    let t = data
+        .iter()
+        .map(|e| Circle::new(*e, 1i32, ITEM))
+        .collect::<Vec<Circle<(f64, f64), i32>>>();
+    scatter_ctx.draw_series(t).expect("Expect to work");
+    scatter_ctx
+        .as_coord_spec()
+        .reverse_translate((click_coord.x as i32, click_coord.y as i32))
+        .map(|coord| {
+            scatter_ctx
+                .draw_series(
+                    LineSeries::new(
+                        (0..number_sample).map(|x| (x as f64, coord.1)),
+                        WHITE
+                    )
+                )
+                .unwrap();
+        });
     drawing_area
         .present()
         .expect(
@@ -43,8 +85,19 @@ fn draw_histogram(drawing_area : DrawingArea<Backend, Shift>) -> () {
 }
 
 fn App<'a>(cx: Scope<'a>) -> Element {
+    let click_coord_state = use_state(cx, ElementPoint::default);
+    let x_axis_scale_state = use_state(cx, || 1.0f64);
+
     render!(Plotters {
         size: (400, 400),
-        on_drawing: draw_histogram,
+        init: move |d| draw_scatter_plot(d, **click_coord_state, **x_axis_scale_state),
+        on_click: |e: Event<MouseData>| click_coord_state.set(e.element_coordinates()),
+        on_wheel: |e: Event<WheelData>|
+            x_axis_scale_state.set(
+                (
+                    **x_axis_scale_state +
+                    (if e.delta().strip_units().y > 0.0 { -0.1 } else { 0.1 })
+                ).max(0.01)
+            ),
     })
 }

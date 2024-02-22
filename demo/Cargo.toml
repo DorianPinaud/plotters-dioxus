@@ -10,4 +10,7 @@ path = "../plotters-dioxus"
 [dependencies]
 dioxus = "0.4.3"
 dioxus-desktop = "0.4.3"
-plotters = { version = "0.3", features = ["histogram"]}
+plotters = "0.3.5"
+rand = "0.8.3"
+rand_distr = "0.4.3"
+rand_xorshift = "0.3.0"

@@ -14,5 +14,7 @@ categories = ["visualization", "gui"]
 [dependencies]
 dioxus = "0.4.3"
 dioxus-desktop = "0.4.3"
-plotters = { version = "0.3", default_features = false }
-plotters-backend = "0.3"
+plotters = "0.3.5"
+base64 = "0.21.7"
+plotters-bitmap = "0.3.3"
+image = "0.24.7"

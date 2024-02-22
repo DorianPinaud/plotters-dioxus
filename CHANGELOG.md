@@ -2,6 +2,10 @@
 
 ## plotters-dioxus 0.2.0 (2024-02-22)
 
+### Added
+
+- callback to handle the on_wheel and on_click action.
+
 ### Improved
 
 - Change the rendering system because of performance issue: 

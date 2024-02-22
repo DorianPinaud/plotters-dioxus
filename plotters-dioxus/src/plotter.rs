@@ -20,8 +20,8 @@ pub type DioxusDrawingArea<'a> = DrawingArea<BitMapBackend<'a>, Shift>;
 pub struct PlottersProps<'a, F: Fn(DioxusDrawingArea)> {
     pub size: (u32, u32),
     pub init: F,
-    pub on_click: EventHandler<'a, Event<MouseData>>,
-    pub on_wheel: EventHandler<'a, Event<WheelData>>,
+    pub on_click: Option<EventHandler<'a, Event<MouseData>>>,
+    pub on_wheel: Option<EventHandler<'a, Event<WheelData>>>,
 }
 
 impl<'a, F: Fn(DioxusDrawingArea)> PartialEq for PlottersProps<'a, F> {
@@ -49,8 +49,8 @@ pub fn Plotters<'a, F: Fn(DioxusDrawingArea)>(cx: Scope<'a, PlottersProps<'a, F>
     let buffer_base64 = BASE64_STANDARD.encode(data);
 
     render!(img {
-        onclick: |e| cx.props.on_click.call(e),
-        onwheel: |e| cx.props.on_wheel.call(e),
+        onclick: |e| if cx.props.on_click.is_some() { cx.props.on_click.as_ref().unwrap().call(e)},
+        onwheel: |e| if cx.props.on_wheel.is_some() { cx.props.on_wheel.as_ref().unwrap().call(e)},
         src: "data:image/png;base64,{buffer_base64}",
     })
 }

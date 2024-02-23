@@ -2,6 +2,8 @@
 
 ## plotters-dixous 0.2.1
 
+### Added
+
 - add the complete list of mouse event on the component *plotters*
 
 ## plotters-dioxus 0.2.0 (2024-02-22)

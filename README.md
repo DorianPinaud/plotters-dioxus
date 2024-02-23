@@ -10,7 +10,7 @@ To use plotters-dioxus, you can add the following line into your Cargo.toml:
 
 ```toml
 [dependencies]
-plotters-dioxus = "0.2.0"
+plotters-dioxus = "0.2.1"
 ```
 
 ## Usage

@@ -1,5 +1,11 @@
 # Changelog
 
+## plotters-dixous 0.2.2
+
+### Added
+
+- add the complete list of drag events on the component *plotters**
+
 ## plotters-dixous 0.2.1
 
 ### Added

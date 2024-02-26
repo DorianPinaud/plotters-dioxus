@@ -10,7 +10,7 @@ To use plotters-dioxus, you can add the following line into your Cargo.toml:
 
 ```toml
 [dependencies]
-plotters-dioxus = "0.2.1"
+plotters-dioxus = "0.2.2"
 ```
 
 ## Usage
@@ -28,7 +28,7 @@ fn main() {
     dioxus_desktop::launch(App);
 }
 
-fn App<'a>(cx: Scope<'a>) -> Element {
+fn App(cx: Scope) -> Element {
     render!(Plotters {
         size: (400, 400),
         init: move |drawing_area: DioxusDrawingArea| {
